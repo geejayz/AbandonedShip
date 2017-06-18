@@ -41,18 +41,24 @@ let currentLocation = "";
 //Create an object containing all of our location data
 let places = {
     "controlroom" : {
-        "description" : "You are in a corridor. Exits are east to the ships's bridge and west to the engine room.",
-        "items" : "powercell",
+        "alias" : "a control room",
+        "description" : "You are in a corridor.",
+        "items" : ["a powercell", "a fuse", "some cable"],
         "exits" : { "east" : "bridge",
                     "west" : "engine"
                   }
         },
     
     "bridge" : {
+        "alias" : "the bridge",
         "description" : "You are on the ship's bridge.",
-        "items" : "brick",
+        "items" : ["a brick", "mortar", "a plant pot"],
         "exits" : { "west" : "controlroom"
                   }
+    },
+    
+    "engine" : {
+        "alias" : "an engine room"
     }
 };
 
@@ -84,7 +90,7 @@ function start() {
     input.focus();
     
     //Set player start location
-    playerLocation = "bridge";
+    playerLocation = "controlroom";
 }
 
 function keydownHandler(event) {
@@ -98,20 +104,23 @@ function keydownHandler(event) {
 function clickHandler() {
     //Store current location for movement check later
     currentLocation = playerLocation;
-
-    //Get the player's input and convert it to lowercase
-    playersInput = input.value;
-    playersInput = playersInput.toLowerCase();
-    
-    output.innerHTML = places[currentLocation]["description"];
     
     validateInput();
+    render();
+    
+    if(action === "look") {
+        look();
+    }
     
     //Clear input field again
     input.value ="";
 }
 
 function validateInput() {
+    //Get the player's input and convert it to lowercase
+    playersInput = input.value;
+    playersInput = playersInput.toLowerCase();
+    
     //take the string entered and make an array at each individual word
     let inputArray = playersInput.split(" ");
     
@@ -155,4 +164,36 @@ function validateInput() {
         
 }
 
+//This function will update the output area after an action is performed
+function render() {
+    //Display the description of players location if they moved
+    if (currentLocation !== playerLocation) {
+        output.innerHTML = places[currentLocation].description + '<br/>';
+    
+        //Display what items can be seen in the current location
+        if (places[currentLocation].items.length !== 0) {
+            output.innerHTML += "You can see " + places[currentLocation].items.join(', ') + '<br/>';
+        }
+    }
+}
 
+
+function look() {
+    //Display the description of the player location
+    output.innerHTML = places[playerLocation].description + '<br/>';
+
+    //Display the available exits
+    if(places[playerLocation].exits) {
+        let availableExits = "";
+        for (let locn in places[playerLocation].exits) {
+            let destination = places[playerLocation].exits[locn];
+            availableExits += locn + " to " + places[destination]["alias"] + ", ";
+        }
+        output.innerHTML += "Exits are " + availableExits + "<br/>";
+    }
+    
+    //Display what items can be seen in the player location
+    if (places[playerLocation].items.length !== 0) {
+        output.innerHTML += "You can see " + places[playerLocation].items.join(', ') + '<br/>';
+    }
+}

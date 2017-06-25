@@ -31,6 +31,12 @@ let allowedCommands = [
     'run', 'throw', 'tie', 'wait', 'wave', 'eat', 'drink'
 ];
 
+let moves = [
+    'north','south','east','west',
+    'northwest','northeast','southwest','southeast',
+    'up','down', 'in', 'out'
+];
+
 //Create an array of items available within the game
 let itemsAvailable = ['fuse', 'powercell', 'passcard'];
 
@@ -40,6 +46,106 @@ let currentLocation = "";
 
 //Create an object containing all of our location data
 let places = {
+    
+    "forwardobservation" : {
+        "alias" : "the forward observation room",
+        "description" : "You are in the forward observation room. From here you can see the direction the ship is heading. It appears to be approaching a large star rather quickly.",
+        "items" : [],
+        "exits" : { "south" : "controldesk" 
+        }
+    },
+    
+     "engineeringpanel" : {
+        "alias" : "an engineering panel",
+        "description" : "You are beside an engineering panel. You can see a small flashing dot on the display that appears to be moving towards a large circular object.",
+        "items" : [],
+        "exits" : { "south" : "controldesk",
+                    "east" : "controldesk"
+        }
+    },
+    
+     "controldesk" : {
+        "alias" : "a control desk",
+        "description" : "You are standing over a small control desk. There are several levers, switches and dials and a very large button in the centre with the word 'Autopilot' written on it.",
+        "items" : [],
+        "exits" : { "north" : "forwardobservation",
+                    "south" : "doorway",
+                    "east" : "commspanel",
+                    "west" : "engineeringpanel"
+        }
+    },
+    
+     "commspanel" : {
+        "alias" : "a communication panel",
+        "description" : "You are standing next to a communications panel.",
+        "items" : [],
+        "exits" : { "south" : "",
+                     "west" : "controldesk"
+        }
+    },
+    
+     "doorway" : {
+        "alias" : "a doorway",
+        "description" : "You are in the entrance to the main control room of the ship.",
+        "items" : [],
+        "exits" : { "north" : "controldesk",
+                    "south" : "corridor1",
+                    "east" : "",
+                    "west" : ""
+        }
+    },
+    
+     "corridor1" : {
+        "alias" : "a corridor",
+        "description" : "You are in a well lit corridor.",
+        "items" : [],
+        "exits" : { "north" : "doorway",
+                    "south" : "corridor2"
+        }
+    },
+    
+     "corridor2" : {
+        "alias" : "a corridor",
+        "description" : "You are in a well lit corridor.",
+        "items" : [],
+        "exits" : { "north" : "corridor1",
+                    "south" : "hub1"
+        }
+    },
+    
+     "hub1" : {
+        "alias" : "a hub",
+        "description" : "You are at a hub in the centre of the ship.",
+        "items" : [],
+        "exits" : { "north" : "corridor2",
+                    "south" : "corridor3",
+                    "east" : "passageway3",
+                    "west" : "passageway1"
+        }
+    },
+    
+     "passageway1" : {
+        "alias" : "a wide green passageway",
+        "description" : "You are in a wide green passageway. Curved windows here let you see the forward and rear lights on the ship. Other than that, it is pitch black outside.",
+        "items" : [],
+        "exits" : { "east" : "hub1",
+                    "west" : "passageway2"
+        }
+    },
+    
+     "locationid" : {
+        "alias" : "",
+        "description" : "",
+        "items" : [],
+        "exits" : { "north" : "",
+                    "south" : "",
+                    "east" : "",
+                    "west" : ""
+        }
+    },
+    
+ 
+    
     "controlroom" : {
         "alias" : "a control room",
         "description" : "You are in a corridor.",
@@ -47,7 +153,7 @@ let places = {
         "exits" : { "east" : "bridge",
                     "west" : "engine"
                   }
-        },
+    },
     
     "bridge" : {
         "alias" : "the bridge",
@@ -58,7 +164,8 @@ let places = {
     },
     
     "engine" : {
-        "alias" : "an engine room"
+        "alias" : "an engine room",
+        "description" : "You are in an engine room."
     }
 };
 
@@ -76,8 +183,8 @@ start();
 
 
 
-//Add functions below
-
+// FUNCTIONS
+// 
 //Run this function at the start of the game or on restart to reset
 function start() {
     //Clear Input Field
@@ -90,7 +197,7 @@ function start() {
     input.focus();
     
     //Set player start location
-    playerLocation = "controlroom";
+    playerLocation = "forwardobservation";
 }
 
 function keydownHandler(event) {
@@ -106,6 +213,7 @@ function clickHandler() {
     currentLocation = playerLocation;
     
     validateInput();
+    resolveAction();
     render();
     
     if(action === "look") {
@@ -168,12 +276,7 @@ function validateInput() {
 function render() {
     //Display the description of players location if they moved
     if (currentLocation !== playerLocation) {
-        output.innerHTML = places[currentLocation].description + '<br/>';
-    
-        //Display what items can be seen in the current location
-        if (places[currentLocation].items.length !== 0) {
-            output.innerHTML += "You can see " + places[currentLocation].items.join(', ') + '<br/>';
-        }
+        look();
     }
 }
 
@@ -185,15 +288,42 @@ function look() {
     //Display the available exits
     if(places[playerLocation].exits) {
         let availableExits = "";
-        for (let locn in places[playerLocation].exits) {
-            let destination = places[playerLocation].exits[locn];
-            availableExits += locn + " to " + places[destination]["alias"] + ", ";
+        for (let exit in places[playerLocation].exits) {
+            let destination = places[playerLocation].exits[exit];
+            availableExits += exit + " to " + places[destination]["alias"] + ", ";
         }
         output.innerHTML += "Exits are " + availableExits + "<br/>";
     }
     
     //Display what items can be seen in the player location
-    if (places[playerLocation].items.length !== 0) {
-        output.innerHTML += "You can see " + places[playerLocation].items.join(', ') + '<br/>';
+    if (places[playerLocation].items) {
+        if (places[playerLocation].items.length !== 0) {
+            output.innerHTML += "You can see " + places[playerLocation].items.join(', ') + '<br/>';
+        }
     }
+}
+
+function resolveAction() {
+    //Determine if command is a move command
+    //Iterate through all the items in the moves array and compare with our action
+    if (moves.indexOf(action) !== -1) {
+        //It is a move command. Verify if it is an available exit
+        let availableExits = [];
+        for (let exit in places[playerLocation].exits ) {
+            availableExits.push(exit);
+        }
+        if(availableExits.indexOf(action) !== -1) {
+            //set playerLocation to equal the new destination
+            console.log(action);
+            playerLocation = places[playerLocation].exits[action];
+            console.log(playerLocation);
+        }
+        else {
+            output.innerHTML += "That way is blocked.<br/>";
+        } 
+            
+  
+        
+    }
+    
 }

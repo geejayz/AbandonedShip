@@ -1,7 +1,5 @@
 "use strict";
 
-console.info ("Script Started");
-
 //Create a reference to each of our user interface elements
 let output = document.querySelector('#output');
 let input = document.querySelector('#input');
@@ -20,18 +18,22 @@ let playersInput = "";
 let action = "";
 let item = "";
 
+//Create a variable to store the output to the screen
+let outputMessage = "";
+
 //Create an array of allowed commands
 let allowedCommands = [
     'north','south','east','west',
     'northwest','northeast','southwest','southeast',
-    'up','down','take','drop','examine','look', 'use', 'blow',
+    'up','down','take', 'get', 'drop','examine','look', 'use', 'blow',
     'break','inventory', 'inv', 'in', 'out', 'help',
     'attack', 'open', 'close', 'empty', 'fill', 'give', 'knock', 'light', 
     'listen', 'mend', 'repair', 'fix', 'yes', 'no', 'plant', 'play', 'press', 'pull', 
-    'run', 'throw', 'tie', 'wait', 'wave', 'eat', 'drink',
+    'run', 'throw', 'tie', 'wait', 'wave', 'eat', 'drink', 'cut',
     'n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se', 'u', 'd'
 ];
 
+//Create an array of move commands
 let moves = [
     'north','south','east','west',
     'northwest','northeast','southwest','southeast',
@@ -40,10 +42,12 @@ let moves = [
 ];
 
 //Create an array of items available within the game
-let itemsAvailable = ['fuse', 'powercell', 'passcard'];
+let itemsAvailable = ['fuse', 'powercell', 'passcard', 'helmet'];
 
-//Create a player inventory
-let backpack = [];
+//Create a player inventory 
+let backpack = {items: {}};
+console.log(backpack);
+console.log(backpack.items);
 
 //Create location variables
 let playerLocation = "";
@@ -55,7 +59,12 @@ let places = {
     "forwardobservation" : {
         "alias" : "the forward observation room",
         "description" : "You are in the forward observation room. From here you can see the direction the ship is heading. It appears to be approaching a large star rather quickly.",
-        "items" : [],
+        "items" : { "passcard" : {
+                                    "alias" : "a passcard",
+                                    "description" : "It's like a credit card with the name Ian Smith printed on it.",
+                                    "movable" : true
+                                }
+        },
         "exits" : { "south" : "controldesk" 
         }
     },
@@ -252,18 +261,18 @@ start();
 
 
 
-
 // FUNCTIONS
-// 
+
 //Run this function at the start of the game or on restart to reset
 function start() {
     //Clear Input Field
     input.value ="";
 
     //Show Start Message
-    output.innerHTML = "Welcome to Abandoned Ship.<br/> Stranded on a spaceship \n\
+    output.innerHTML = "Stranded on a spaceship \n\
                         far from spacedock and seemingly, with all the crew missing, you must \n\
                         figure out a way to get yourself home again.</br>\n\
+                        Welcome to Abandoned Ship.<br/>\n\
                         Type 'look' to start your adventure.</br>";
 
     //Set Focus on Input Field
@@ -285,26 +294,12 @@ function clickHandler() {
     //Store current location for movement check later
     currentLocation = playerLocation;
     
-    validateInput();
-    handleInput();
+    validateInput();        //This function will determine our action and item
     resolveAction();
     render();
+    reset();
     
-    if(action === "look") {
-        look();
-    }
     
-    if(action === "take") {
-        take();
-    }
-    
-    if(action === "drop") {
-        drop();
-    }
-    
-    if(action === "inventory" || action === "inv") {
-        inventory();
-    }
     
     //Clear input field again
     input.value ="";
@@ -442,18 +437,34 @@ function handleInput() {
 }
 
 //This function will update the output area after an action is performed
-function render() {
+function render() {    
     //Display the description of players location if they moved
     if (currentLocation !== playerLocation) {
         look();
     }
+    
+    //Display the output message
+    output.innerHTML = outputMessage;
+    
+}
+
+function reset() {
+    //At the end of every turn, reset the variables
+    
+    outputMessage = "";
+    
+    action = "";
+    item = "";
+    
+    //Clear input field again
+    input.value ="";
 }
 
 
 function look() {
     //Display the description of the player location
-    output.innerHTML = places[playerLocation].description + '<br/>';
-
+    outputMessage += places[playerLocation].description + '<br/>';
+    
     //Display the available exits
     if(places[playerLocation].exits) {
         let availableExits = "";
@@ -461,20 +472,23 @@ function look() {
             let destination = places[playerLocation].exits[exit];
             availableExits += exit + " to " + places[destination]["alias"] + ", ";
         }
-        output.innerHTML += "Exits are " + availableExits + "<br/>";
+        outputMessage += "Exits are " + availableExits + "<br/>";
     }
     
     //Display what items can be seen in the player location
-    if (places[playerLocation].items) {
-        if (places[playerLocation].items.length !== 0) {
-            output.innerHTML += "You can see " + places[playerLocation].items.join(', ') + '<br/>';
+    if (Object.keys(places[playerLocation].items).length > 0) {
+        let availableItems = "";
+        for (let key in places[playerLocation]["items"]) {
+            availableItems += places[playerLocation]["items"][key].alias + ", "; 
         }
+        
+        outputMessage += "You can see " + availableItems + '<br/>';
     }
-    
-    //Reset
-    action = "";
-    item = "";
+   
 }
+
+
+
 
 function resolveAction() {
     //Determine if command is a move command
@@ -487,104 +501,155 @@ function resolveAction() {
         }
         if(availableExits.indexOf(action) !== -1) {
             //set playerLocation to equal the new destination
-            console.log(action);
             playerLocation = places[playerLocation].exits[action];
             console.log(playerLocation);
         }
         else {
-            output.innerHTML += "That way is blocked.<br/>";
+            outputMessage += "That way is blocked.<br/>";
         }  
     }
     
+    if(action === "look") {
+        look();
+    }
+    
+    if(action === "take" || action === "get") {
+        take();
+    }
+    
+    if(action === "drop") {
+        drop();
+    }
+    
+    if(action === "inventory" || action === "inv") {
+        inventory();
+    }
+    
+    if(action === "examine" || action === "check") {
+        examine();
+    }
 }
 
 
-function open() {
-    if(places[playerLocation].open) {
-        
-    }
-    else {
-        //Not available here
-    }
-}
-
-function take(){
-    if(item !== "") {
+function examine() {
+    //Check if a known item was selected
+    if (item !== "") {
         //valid item was mentioned in player input
         let foundInInventory = false;
         let foundInRoom = false;
-
-        //First, check if item is already in our existing inventory		
-        if(backpack.length !==0) {
-            for (let i=0; i < backpack.length; i++) {
-                if(item === backpack[i]) {
-                    output.innerHTML += "You already have the " + item + ".<br/>";
+        
+        //First, check if item is already in our existing inventory
+        if (Object.keys(backpack.items).length > 0) {
+            //Loop through each item in backpack and see if it matches the item we wish to examine
+            for (var key in backpack.items) {
+                if(item === key) {
+                    outputMessage += backpack.items[key].description;
                     foundInInventory = true;
-                    item="";
                     break;
                 }
             }
         }
-
         //Next, if not in the inventory, check the current location
-        if(places[playerLocation]['items'].length !== 0 && !foundInInventory) {
-            for (let i=0; i < places[playerLocation]['items'].length; i++) {
-                if (item === places[playerLocation]['items'][i]) {
-                    //item found
-                    console.log('item found now checking for space to take');
+        if (Object.keys(places[playerLocation].items).length > 0 && !foundInInventory) {
+            let availableItems = "";
+            for (let key in places[playerLocation]["items"]) {
+                if(item === key) {
+                    outputMessage += backpack.items[key].description;
+                    foundInRoom = true;
+                    break;
+                }
+            }
+        }
+        //Finally, if not in inventory or room then report item not found
+        if(!foundInRoom && !foundInInventory) {
+                outputMessage += "You can't see " + item +".<br/>";
+                item="";
+        }
+    }
+    else {
+        //valid item not mentioned in player input
+        outputMessage += "There is no such item here.<br/>";
+    }
+}
 
-                    if(backpack.length >=6) {
-                        console.log('greater than 6');
-                        output.innerHTML = "Your hands are full.";
+
+function take()  {
+    //Check if a known item was selected
+    if (item !== "") {
+        //valid item was mentioned in player input
+        let foundInInventory = false;
+        let foundInRoom = false;
+        
+        //First, check if item is already in our existing inventory
+        if (Object.keys(backpack.items).length > 0) {
+            //Loop through each item in backpack and see if it matches the item we wish to take
+            for (var key in backpack.items) {
+                console.log(key);
+                if(item === key) {
+                    outputMessage += "You already have " + item + ".<br/>";
+                    foundInInventory = true;
+                    break;
+                }
+            }
+        }
+        
+        //Next, if not in the inventory, check the current location
+        if (Object.keys(places[playerLocation].items).length > 0 && !foundInInventory) {
+            let availableItems = "";
+            for (let key in places[playerLocation]["items"]) {
+                if(item === key) {
+                    //Item found now check if there is room in inventory
+                    if (Object.keys(backpack.items).length > 6) {
+                        outputMessage += "Your hands are full.";
                         foundInRoom = true;
                     }
-                    else {						
-                        console.log('item found and can be taken');
-                        output.innerHTML = "You take the " + item +".<br/>";
+                    else {
+                        //item found and can be taken
+                        let currentItem = places[playerLocation]["items"][key]["alias"];
+                        
+                        //Update message
+                        outputMessage += "You take " + currentItem + ".<br/>";
+                        
+                        //Add item to inventory
+                        backpack["items"][key] = places[playerLocation]["items"][key];
 
-                        //add to inventory
-                        backpack.push(places[playerLocation]['items'][i]);
-
-                        //remove item from location
-                        places[playerLocation]['items'].splice(i,1);
+                        //Remove item from location
+                        delete places[playerLocation]["items"][key];
 
                         foundInRoom = true;
                     }
                 }
             }
         }
-
-
+        
         //Finally, if not in inventory or room then report item not found
         if(!foundInRoom && !foundInInventory) {
-                console.log('item not found');
-                output.innerHTML += "You can't see " + item +".<br/>";
+                outputMessage += "You can't see " + item +".<br/>";
                 item="";
-        }	
-
+        }
+        
     }
     else {
-            //valid item not mentioned in player input
-            output.innerHTML += "There is no such item here.<br/>";
-            //notUnderstood ();
+        //valid item not mentioned in player input
+        outputMessage += "There is no such item here.<br/>";
     }	
 }
 
 
 function drop() {
     if (item !== "") {
-        if (backpack.length !== 0) {
+        if (Object.keys(backpack.items).length > 0) {
             //Check if item is available in the inventory
-            for (let i=0; i < backpack.length; i++) {
-                if (item === backpack[i]) {
+            for (let key in backpack["items"]) {
+                if (item === key) {
                     //item found
-                    output.innerHTML += "You drop the " + item +".<br/>";
+                    outputMessage += "You drop the " + item +".<br/>";
 
                     //add to location
-                    places[playerLocation]['items'].push(backpack[i]);
+                    places[playerLocation]['items'][key] = backpack["items"][key];
 
                     //remove item from inventory
-                    backpack.splice(i,1);
+                    delete backpack["items"][key];
 
                 }
                 else {
@@ -601,21 +666,20 @@ function drop() {
     else {
         //valid item not mentioned in player input
         output.innerHTML += "You have no such item.<br/>";
-        //notUnderstood ();
     }	
 }
 
 function inventory(){
-	//Display the player's inventory contents
-	if(backpack.length !== 0) {
-		let listOfItems = [];
-		for(let i=0; i < backpack.length; i++) {
-			listOfItems.push(backpack[i][0]);
-		}
-		output.innerHTML += 'You have ' + listOfItems.join(', ') +'.<br/>';
-	
+	//Display the player's inventory 
+        if (Object.keys(backpack.items).length > 0) {
+            let availableItems = "";
+            for (let key in backpack["items"]) {
+                availableItems += backpack["items"][key].alias + ", "; 
+
+                outputMessage += 'You have ' + availableItems + '.<br/>';
+            }
 	}
 	else {
-		output.innerHTML += "You have nothing.<br/>";
+            outputMessage += "You have nothing.<br/>";
 	}
 }

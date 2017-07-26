@@ -26,10 +26,10 @@ let allowedCommands = [
     'north','south','east','west',
     'northwest','northeast','southwest','southeast',
     'up','down','take', 'get', 'drop','examine','look', 'use', 'blow',
-    'break','inventory', 'inv', 'in', 'out', 'help',
+    'break','inventory', 'inv', 'in', 'out', 'help', 'check', 'inspect',
     'attack', 'open', 'close', 'empty', 'fill', 'give', 'knock', 'light', 
     'listen', 'mend', 'repair', 'fix', 'yes', 'no', 'plant', 'play', 'press', 'pull', 
-    'run', 'throw', 'tie', 'wait', 'wave', 'eat', 'drink', 'cut',
+    'run', 'throw', 'tie', 'wait', 'wave', 'eat', 'drink', 'cut', 'push',
     'n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se', 'u', 'd'
 ];
 
@@ -42,16 +42,17 @@ let moves = [
 ];
 
 //Create an array of items available within the game
-let itemsAvailable = ['fuse', 'powercell', 'passcard', 'helmet'];
+let itemsAvailable = ['fuse', 'powercell', 'passcard', 'button', 'locker'];
 
 //Create a player inventory 
 let backpack = {items: {}};
-console.log(backpack);
-console.log(backpack.items);
 
 //Create location variables
 let playerLocation = "";
 let currentLocation = "";
+
+let powercellInserted = false;
+let fuseInserted = false;
 
 //Create an object containing all of our location data
 let places = {
@@ -59,11 +60,8 @@ let places = {
     "forwardobservation" : {
         "alias" : "the forward observation room",
         "description" : "You are in the forward observation room. From here you can see the direction the ship is heading. It appears to be approaching a large star rather quickly.",
-        "items" : { "passcard" : {
-                                    "alias" : "a passcard",
-                                    "description" : "It's like a credit card with the name Ian Smith printed on it.",
-                                    "movable" : true
-                                }
+        "image" : "",
+        "items" : { 
         },
         "exits" : { "south" : "controldesk" 
         }
@@ -72,7 +70,7 @@ let places = {
     "engineeringpanel" : {
         "alias" : "an engineering panel",
         "description" : "You are beside an engineering panel. You can see a small flashing dot on the display that appears to be moving towards a large circular object.",
-        "items" : [],
+        "items" : {},
         "exits" : { "south" : "controlrack",
                     "east" : "controldesk"
         }
@@ -80,8 +78,30 @@ let places = {
     
     "controldesk" : {
         "alias" : "a control desk",
-        "description" : "You are standing over a small control desk. There are several levers, switches and dials and a very large button in the centre with the word 'Autopilot' written on it.",
-        "items" : [],
+        "description" : "You are standing over a small control desk. There are several levers, switches and dials.",
+        "items" : { "button" : {
+                        "alias" : "a large button",
+                        "description" : "A large green button with the words 'Return To Base' written on it.",
+                        "movable" : false, 
+                        "conditionsmet" : function(action) { 
+                            console.log(action);
+                            if (action === "push") {
+                                
+                                if (powercellInserted) {
+                                    
+                                    return true;
+                                }
+                                
+                            }
+                        },
+                        "actions" : function(action) {
+                            if(action === "push") {
+                                outputMessage += "You push the button and there is a loud audible message stating 'The ship is returning to base'. \n\
+                                                  Well done! It looks like you saved yourself.";
+                            }
+                        }
+                    }
+        }, 
         "exits" : { "north" : "forwardobservation",
                     "south" : "doorway",
                     "east" : "commspanel",
@@ -92,7 +112,7 @@ let places = {
     "commspanel" : {
         "alias" : "a communication panel",
         "description" : "You are standing next to a communications panel.",
-        "items" : [],
+        "items" : {},
         "exits" : { "south" : "storagelocker",
                      "west" : "controldesk"
         }
@@ -100,8 +120,14 @@ let places = {
     
     "controlrack" : {
         "alias" : "a control rack",
-        "description" : "You are beside a control rack with lots of exposed circuit boards and cabling.",
-        "items" : [],
+        "description" : "You are beside a control rack with lots of exposed parts and cabling.",
+        "items" : {
+            "circuit" : {
+                        "alias" : "an exposed circuit board",
+                        "description" : "The circuit board has a pair of contacts that seem to need some sort of linkage fitted.",
+                        "movable" : false
+            }            
+        },
         "exits" : { "north" : "engineeringpanel",
                     "east" : "doorway"
         }
@@ -110,7 +136,7 @@ let places = {
     "doorway" : {
         "alias" : "a doorway",
         "description" : "You are in the entrance to the main control room of the ship.",
-        "items" : [],
+        "items" : {},
         "exits" : { "north" : "controldesk",
                     "south" : "corridor1",
                     "east" : "storagelocker",
@@ -121,17 +147,27 @@ let places = {
     "storagelocker" : {
         "alias" : "a storage locker",
         "description" : "You are standing beside a storage locker.",
-        "items" : [],
-        "locked" : true,
-        "open"  : function() { if(this.locked) { console.log ('locked'); }
-                               output.innerHTML += "It's locked. There is a slot for a passcard to be inserted. <br/>";
-                  },
-        "use"   : function() {
-                                if(item === "passcard") {
-                                    console.log('Unlocked');
-                                    this.locked = false;
+        "items" : {
+            fuse: {
+                "alias" : "a fuse",
+                "description" : "a small fuse with '3A' marked on it.",
+                "movable" : true,
+                "visible" : false,
+                conditionsmet : function(action) {
+                        if(action === use) {
+                                if(playerLocation === "controlrack") {
+                                        return true;
                                 }
+                        }
+                },
+                actions: function(action) {
+                        outputMessage = "You fit the fuse into the circuit board and a small red light comes on.";
+                        places["controlrack"]["description"] = "The circuit board has a small red light on it.";
+                        delete backpack["items"]["fuse"];
+	}
+}
         },
+        "locked" : true,
         "exits" : { "north" : "commspanel",
                     "west" : "doorway"
         }
@@ -140,7 +176,7 @@ let places = {
     "corridor1" : {
         "alias" : "a corridor",
         "description" : "You are in a well lit corridor.",
-        "items" : [],
+        "items" : {},
         "exits" : { "north" : "doorway",
                     "south" : "corridor2"
         }
@@ -149,7 +185,7 @@ let places = {
     "corridor2" : {
         "alias" : "a corridor",
         "description" : "You are in a well lit corridor.",
-        "items" : [],
+        "items" : {},
         "exits" : { "north" : "corridor1",
                     "south" : "hub1"
         }
@@ -158,7 +194,7 @@ let places = {
     "hub1" : {
         "alias" : "a hub",
         "description" : "You are at a hub in the centre of the ship.",
-        "items" : [],
+        "items" : {},
         "exits" : { "north" : "corridor2",
                     //"south" : "corridor3",
                     "east" : "passageway3",
@@ -169,7 +205,7 @@ let places = {
     "passageway1" : {
         "alias" : "a wide green passageway",
         "description" : "You are in a wide green passageway. Curved windows here let you see the forward and rear lights on the ship. Other than that, it is pitch black outside.",
-        "items" : [],
+        "items" : {},
         "exits" : { "east" : "hub1",
                     "west" : "passageway2"
         }
@@ -178,7 +214,7 @@ let places = {
     "passageway2" : {
         "alias" : "a wide green passageway",
         "description" : "You are in a wide green passageway.",
-        "items" : [],
+        "items" : {},
         "exits" : { "east" : "passageway1",
                     "west" : "portaccess"
         }
@@ -187,7 +223,7 @@ let places = {
     "passageway3" : {
         "alias" : "a wide green passageway",
         "description" : "You are in a wide green passageway. Curved windows here let you see the forward and rear lights on the ship. Other than that, it is pitch black outside.",
-        "items" : [],
+        "items" : {},
         "exits" : { "east" : "passageway4",
                     "west" : "hub1"
         }
@@ -196,7 +232,7 @@ let places = {
     "passageway4" : {
         "alias" : "a wide green passageway",
         "description" : "You are in a wide green passageway.",
-        "items" : [],
+        "items" : {},
         "exits" : { "east" : "starboardaccess",
                     "west" : "passageway3"
         }
@@ -205,7 +241,7 @@ let places = {
     "portaccess" : {
         "alias" : "an access corridor",
         "description" : "You are in an access corridor.",
-        "items" : [],
+        "items" : {},
         "exits" : { "north" : "medicallab",
                     "south" : "portengine",
                     "east"  : "passageway1"
@@ -223,7 +259,7 @@ let places = {
     "portengine" : {
         "alias" : "the port engine room",
         "description" : "You are in an engine room. You can see a large powerful looking engine.",
-        "items" : [],
+        "items" : {},
         "exits" : { "north" : "portaccess"
         }
     },
@@ -231,7 +267,7 @@ let places = {
     "starboardaccess" : {
         "alias" : "an access corridor",
         "description" : "You are in an access corridor.",
-        "items" : [],
+        "items" : {},
         "exits" : { "north" : "brig",
                     "south" : "starboardengine",
                     "west"  : "passageway4"
@@ -241,7 +277,26 @@ let places = {
     "brig" : {
         "alias" : "the ship's brig",
         "description" : "You are in the ship's brig. There are two empty cells but no occupants, thankfully!",
-        "items" : ['fuse'],
+        "items" : { "passcard" : {
+                        "alias" : "a passcard",
+                        "description" : "It's like a credit card with the name Ian Smith printed on it.",
+                        "movable" : true, 
+                        "conditionsmet" : function(action) { 
+                            if(action === "use") {
+                                if (currentLocation === "storagelocker") {
+                                    return true;
+                                }
+                            }
+                        },
+                        "actions" : function(action) {
+                            if(action === "use") {
+                                places["storagelocker"]["alias"] = "an open locker";
+                                places["storagelocker"]["locked"] = false;
+                                outputMessage += "You insert the passcard into the locker, and the locker opens.";
+                            }
+                        }
+                    }
+        },
         "exits" : { "south" : "starboardaccess"
         }
     },
@@ -249,7 +304,7 @@ let places = {
     "starboardengine" : {
         "alias" : "the starboard engine room",
         "description" : "You are in an engine room. You can see a large powerful looking engine.",
-        "items" : [],
+        "items" : {},
         "exits" : { "north" : "starboardaccess"
         }
     }
@@ -401,21 +456,18 @@ function validateInput() {
     
         //If no action or item found in input
         if (action === "" && item === "") {
-            output.innerHTML += "What? <br/>";
+            outputMessage += "What? <br/>";
         }
 
         //If action not understood but item is valid
          if (action === "" && item !== "") {
-            output.innerHTML += "Do what to a " + item + "? <br/>";
+            outputMessage += "Do what to a " + item + "? <br/>";
         }
     }
     else {
-        output.innerHTML = "Please enter a text command into the input field \n\
+        outputMessage = "Please enter a text command into the input field \n\
                             below and press the action button or return key.";
-    }
-    
-    console.log(action + ' ' + item);
-    
+    }   
 }
 
 
@@ -509,6 +561,7 @@ function resolveAction() {
         }  
     }
     
+    
     if(action === "look") {
         look();
     }
@@ -521,6 +574,10 @@ function resolveAction() {
         drop();
     }
     
+    if(action === "use") {
+        use();
+    }
+    
     if(action === "inventory" || action === "inv") {
         inventory();
     }
@@ -528,11 +585,19 @@ function resolveAction() {
     if(action === "examine" || action === "check") {
         examine();
     }
+    
+    if(action === "press" || action === "push") {
+        push();
+    }
+    
+    if(action === "inspect") {
+        console.log(checkBackpack(item));
+    }
+    
+    
 }
 
-
-function examine() {
-    //Check if a known item was selected
+function push() {
     if (item !== "") {
         //valid item was mentioned in player input
         let foundInInventory = false;
@@ -540,10 +605,16 @@ function examine() {
         
         //First, check if item is already in our existing inventory
         if (Object.keys(backpack.items).length > 0) {
-            //Loop through each item in backpack and see if it matches the item we wish to examine
+            //Loop through each item in backpack and see if it matches the item we wish to use
             for (var key in backpack.items) {
                 if(item === key) {
-                    outputMessage += backpack.items[key].description;
+                    //We have a valid item but we need to check conditions to see if it can be used now
+                    if(backpack["items"][key].conditionsmet("push")) {
+                        backpack["items"][key].actions("push");
+                    }
+                    else {
+                        outputMessage += "Nothing happens.<br/>";
+                    }
                     foundInInventory = true;
                     break;
                 }
@@ -551,10 +622,15 @@ function examine() {
         }
         //Next, if not in the inventory, check the current location
         if (Object.keys(places[playerLocation].items).length > 0 && !foundInInventory) {
-            let availableItems = "";
             for (let key in places[playerLocation]["items"]) {
                 if(item === key) {
-                    outputMessage += backpack.items[key].description;
+                    //We have a valid item but we need to check conditions to see if it can be used now
+                    if(places[playerLocation]["items"][key].conditionsmet("push")) {
+                        places[playerLocation]["items"][key].actions("push");
+                    }
+                    else {
+                        outputMessage += "Nothing happens<br/>";
+                    }
                     foundInRoom = true;
                     break;
                 }
@@ -566,6 +642,126 @@ function examine() {
                 item="";
         }
     }
+        
+    else {
+        //valid item not mentioned in player input
+        outputMessage += "There is no such item here.<br/>";
+    }
+}
+
+
+//Would like to use something like this in the future to reduce code
+function checkBackpack(theItem) {
+    //Is backpack empty
+    if (Object.keys(backpack.items).length > 0) {
+        //Do something
+        for (var key in backpack.items) {
+            if(theItem === key) {
+                return true;
+            }
+        }
+        //If it made it to here, item was not found
+        return false;
+    }
+    else {
+        return false;
+    }
+}
+
+function checkLocation(theItem) {
+    if (Object.keys(places[playerLocation].items).length > 0) {
+        for (let key in places[playerLocation]["items"]) {
+                if(theItem === key) {
+                    return true;
+                }
+        } 
+        return false;
+    } 
+    else {
+        return false;
+    } 
+} 
+
+function examine() {
+    if (item !== "") {
+        //valid item was mentioned in player input
+        let foundInInventory = false;
+        let foundInRoom = false;
+        
+        //First, check if item is already in our existing inventory
+        if(checkBackpack(item)) {
+            outputMessage += backpack.items[item].description;
+            foundInInventory = true;
+        }
+        
+        //Next, if not in the inventory, check the current location
+        if(!foundInInventory) {
+            if(checkLocation(item)) {
+                outputMessage += places[playerLocation]["items"][item]["description"];;
+                foundInRoom = true;
+            }
+        }
+        //Finally, if not in inventory or room then report item not found
+        if(!foundInRoom && !foundInInventory) {
+            outputMessage += "You can't see " + item +".<br/>";
+            item="";
+        }
+    }
+    else {
+        //valid item not mentioned in player input
+        outputMessage += "There is no such item here.<br/>";
+    }
+}
+
+
+
+function use() {
+    //Check if a known item was selected
+    if (item !== "") {
+        //valid item was mentioned in player input
+        let foundInInventory = false;
+        let foundInRoom = false;
+        
+        //First, check if item is already in our existing inventory
+        if (Object.keys(backpack.items).length > 0) {
+            //Loop through each item in backpack and see if it matches the item we wish to use
+            for (var key in backpack.items) {
+                if(item === key) {
+                    //We have a valid item but we need to check conditions to see if it can be used now
+                    if(backpack["items"][key].conditionsmet(use)) {
+                        backpack["items"][key].actions(use);
+                    }
+                    else {
+                        outputMessage += "You can't use that right now.<br/>";
+                    }
+                    foundInInventory = true;
+                    break;
+                }
+            }
+        }
+        //Next, if not in the inventory, check the current location
+        if (Object.keys(places[playerLocation].items).length > 0 && !foundInInventory) {
+            for (let key in places[playerLocation]["items"]) {
+                if(item === key) {
+                    //We have a valid item but we need to check conditions to see if it can be used now
+                    if(places[playerLocation]["items"][key].conditionsmet(use)) {
+                        places[playerLocation]["items"][key].actions(use);
+                    }
+                    else {
+                        outputMessage += "You can't use that right now.<br/>";
+                    }
+                    foundInRoom = true;
+                    break;
+                }
+            }
+        }
+        //Finally, if not in inventory or room then report item not found
+        if(!foundInRoom && !foundInInventory) {
+                outputMessage += "You can't see " + item +".<br/>";
+                item="";
+        }
+    }
+        
     else {
         //valid item not mentioned in player input
         outputMessage += "There is no such item here.<br/>";
